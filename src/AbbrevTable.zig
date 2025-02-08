@@ -76,23 +76,23 @@ fn formatTag(
     _ = unused_fmt_string;
     _ = options;
     const is_tag_known = switch (tag) {
-        dwarf.TAG.lo_user...dwarf.TAG.hi_user => switch (tag) {
+        dw.TAG.lo_user...dw.TAG.hi_user => switch (tag) {
             0x4109, 0x410a => true,
             else => false,
         },
-        else => inline for (@typeInfo(dwarf.TAG).Struct.decls) |x| {
-            if (@field(dwarf.TAG, x.name) == tag) break true;
+        else => inline for (@typeInfo(dw.TAG).@"struct".decls) |x| {
+            if (@field(dw.TAG, x.name) == tag) break true;
         } else false,
     };
     if (is_tag_known) {
         const tag_s = switch (tag) {
-            dwarf.TAG.lo_user...dwarf.TAG.hi_user => switch (tag) {
+            dw.TAG.lo_user...dw.TAG.hi_user => switch (tag) {
                 0x4109 => "DW_TAG_GNU_call_site",
                 0x410a => "DW_TAG_GNU_call_site_parameter",
                 else => unreachable, // sync'd with is_tag_known check above
             },
-            else => inline for (@typeInfo(dwarf.TAG).Struct.decls) |x| {
-                if (@field(dwarf.TAG, x.name) == tag) {
+            else => inline for (@typeInfo(dw.TAG).@"struct".decls) |x| {
+                if (@field(dw.TAG, x.name) == tag) {
                     break "DW_TAG_" ++ x.name;
                 }
             } else unreachable, // sync'd with is_tag_known check above
@@ -110,18 +110,18 @@ pub const Attr = struct {
 
     pub fn getFlag(attr: Attr, value: []const u8) ?bool {
         return switch (attr.form) {
-            dwarf.FORM.flag => value[0] == 1,
-            dwarf.FORM.flag_present => true,
+            dw.FORM.flag => value[0] == 1,
+            dw.FORM.flag_present => true,
             else => null,
         };
     }
 
     pub fn getString(attr: Attr, value: []const u8, dwf: DwarfDump.Format, ctx: *const Context) ?[]const u8 {
         switch (attr.form) {
-            dwarf.FORM.string => {
+            dw.FORM.string => {
                 return mem.sliceTo(@as([*:0]const u8, @ptrCast(value.ptr)), 0);
             },
-            dwarf.FORM.strp => {
+            dw.FORM.strp => {
                 const off = switch (dwf) {
                     .dwarf64 => mem.readInt(u64, value[0..8], .little),
                     .dwarf32 => mem.readInt(u32, value[0..4], .little),
@@ -134,7 +134,7 @@ pub const Attr = struct {
 
     pub fn getSecOffset(attr: Attr, value: []const u8, dwf: DwarfDump.Format) ?u64 {
         return switch (attr.form) {
-            dwarf.FORM.sec_offset => switch (dwf) {
+            dw.FORM.sec_offset => switch (dwf) {
                 .dwarf32 => mem.readInt(u32, value[0..4], .little),
                 .dwarf64 => mem.readInt(u64, value[0..8], .little),
             },
@@ -146,12 +146,12 @@ pub const Attr = struct {
         var stream = std.io.fixedBufferStream(value);
         const reader = stream.reader();
         return switch (attr.form) {
-            dwarf.FORM.data1 => value[0],
-            dwarf.FORM.data2 => mem.readInt(u16, value[0..2], .little),
-            dwarf.FORM.data4 => mem.readInt(u32, value[0..4], .little),
-            dwarf.FORM.data8 => mem.readInt(u64, value[0..8], .little),
-            dwarf.FORM.udata => try leb.readULEB128(u64, reader),
-            dwarf.FORM.sdata => try leb.readILEB128(i64, reader),
+            dw.FORM.data1 => value[0],
+            dw.FORM.data2 => mem.readInt(u16, value[0..2], .little),
+            dw.FORM.data4 => mem.readInt(u32, value[0..4], .little),
+            dw.FORM.data8 => mem.readInt(u64, value[0..8], .little),
+            dw.FORM.udata => try leb.readULEB128(u64, reader),
+            dw.FORM.sdata => try leb.readILEB128(i64, reader),
             else => null,
         };
     }
@@ -160,12 +160,12 @@ pub const Attr = struct {
         var stream = std.io.fixedBufferStream(value);
         const reader = stream.reader();
         return switch (attr.form) {
-            dwarf.FORM.ref1 => value[0],
-            dwarf.FORM.ref2 => mem.readInt(u16, value[0..2], .little),
-            dwarf.FORM.ref4 => mem.readInt(u32, value[0..4], .little),
-            dwarf.FORM.ref8 => mem.readInt(u64, value[0..8], .little),
-            dwarf.FORM.ref_udata => try leb.readULEB128(u64, reader),
-            dwarf.FORM.ref_addr => switch (dwf) {
+            dw.FORM.ref1 => value[0],
+            dw.FORM.ref2 => mem.readInt(u16, value[0..2], .little),
+            dw.FORM.ref4 => mem.readInt(u32, value[0..4], .little),
+            dw.FORM.ref8 => mem.readInt(u64, value[0..8], .little),
+            dw.FORM.ref_udata => try leb.readULEB128(u64, reader),
+            dw.FORM.ref_addr => switch (dwf) {
                 .dwarf32 => mem.readInt(u32, value[0..4], .little),
                 .dwarf64 => mem.readInt(u64, value[0..8], .little),
             },
@@ -175,7 +175,7 @@ pub const Attr = struct {
 
     pub fn getAddr(attr: Attr, value: []const u8, cuh: CompileUnit.Header) ?u64 {
         return switch (attr.form) {
-            dwarf.FORM.addr => switch (cuh.address_size) {
+            dw.FORM.addr => switch (cuh.address_size) {
                 1 => value[0],
                 2 => mem.readInt(u16, value[0..2], .little),
                 4 => mem.readInt(u32, value[0..4], .little),
@@ -187,7 +187,7 @@ pub const Attr = struct {
     }
 
     pub fn getExprloc(attr: Attr, value: []const u8) !?[]const u8 {
-        if (attr.form != dwarf.FORM.exprloc) return null;
+        if (attr.form != dw.FORM.exprloc) return null;
         var stream = std.io.fixedBufferStream(value);
         var creader = std.io.countingReader(stream.reader());
         const reader = creader.reader();
@@ -206,8 +206,8 @@ pub const Attr = struct {
         try writer.writeAll("        ");
         try writer.print("{}", .{fmtAt(attr.at)});
         try writer.writeAll("  ");
-        inline for (@typeInfo(dwarf.FORM).Struct.decls) |x| {
-            if (@field(dwarf.FORM, x.name) == attr.form) {
+        inline for (@typeInfo(dw.FORM).@"struct".decls) |x| {
+            if (@field(dw.FORM, x.name) == attr.form) {
                 try writer.print("DW_FORM_{s}", .{x.name});
                 break;
             }
@@ -228,17 +228,17 @@ fn formatAt(
     _ = unused_fmt_string;
     _ = options;
     const is_at_known = switch (at) {
-        dwarf.AT.lo_user...dwarf.AT.hi_user => switch (at) {
+        dw.AT.lo_user...dw.AT.hi_user => switch (at) {
             0x2111, 0x2113, 0x2115, 0x2117, 0x3e02, 0x3fef => true,
             else => false,
         },
-        else => inline for (@typeInfo(dwarf.AT).Struct.decls) |x| {
-            if (@field(dwarf.AT, x.name) == at) break true;
+        else => inline for (@typeInfo(dw.AT).@"struct".decls) |x| {
+            if (@field(dw.AT, x.name) == at) break true;
         } else false,
     };
     if (is_at_known) {
         const name = switch (at) {
-            dwarf.AT.lo_user...dwarf.AT.hi_user => switch (at) {
+            dw.AT.lo_user...dw.AT.hi_user => switch (at) {
                 0x2111 => "DW_AT_GNU_call_site_value",
                 0x2113 => "DW_AT_GNU_call_site_target",
                 0x2115 => "DW_AT_GNU_tail_cail",
@@ -247,8 +247,8 @@ fn formatAt(
                 0x3fef => "DW_AT_APPLE_sdk",
                 else => unreachable,
             },
-            else => inline for (@typeInfo(dwarf.AT).Struct.decls) |x| {
-                if (@field(dwarf.AT, x.name) == at) {
+            else => inline for (@typeInfo(dw.AT).@"struct".decls) |x| {
+                if (@field(dw.AT, x.name) == at) {
                     break "DW_AT_" ++ x.name;
                 }
             } else unreachable,
@@ -262,7 +262,8 @@ fn formatAt(
 const AbbrevTable = @This();
 
 const assert = std.debug.assert;
-const dwarf = std.dwarf;
+const dwarf = std.debug.Dwarf;
+const dw = std.dwarf;
 const leb = std.leb;
 const mem = std.mem;
 const std = @import("std");

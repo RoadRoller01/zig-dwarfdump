@@ -23,14 +23,14 @@ pub fn cast(base: *Context, comptime T: type) ?*T {
     if (base.tag != T.base_tag)
         return null;
 
-    return @fieldParentPtr(T, "base", base);
+    return @fieldParentPtr("base", base);
 }
 
 pub fn constCast(base: *const Context, comptime T: type) ?*const T {
     if (base.tag != T.base_tag)
         return null;
 
-    return @fieldParentPtr(T, "base", base);
+    return @fieldParentPtr("base", base);
 }
 
 pub fn deinit(base: *Context, gpa: Allocator) void {
@@ -41,17 +41,17 @@ pub fn destroy(base: *Context, gpa: Allocator) void {
     base.deinit(gpa);
     switch (base.tag) {
         .elf => {
-            const parent = @fieldParentPtr(Elf, "base", base);
+            const parent: *Elf = @fieldParentPtr("base", base);
             parent.deinit(gpa);
             gpa.destroy(parent);
         },
         .macho => {
-            const parent = @fieldParentPtr(MachO, "base", base);
+            const parent: *MachO = @fieldParentPtr("base", base);
             parent.deinit(gpa);
             gpa.destroy(parent);
         },
         .wasm => {
-            const parent = @fieldParentPtr(Wasm, "base", base);
+            const parent: *Wasm = @fieldParentPtr("base", base);
             parent.deinit(gpa);
             gpa.destroy(parent);
         },
@@ -73,32 +73,32 @@ pub fn parse(gpa: Allocator, data: []const u8) !*Context {
 
 pub fn getDebugInfoData(base: *const Context) ?[]const u8 {
     return switch (base.tag) {
-        .elf => @fieldParentPtr(Elf, "base", base).getDebugInfoData(),
-        .macho => @fieldParentPtr(MachO, "base", base).getDebugInfoData(),
-        .wasm => @fieldParentPtr(Wasm, "base", base).getDebugInfoData(),
+        .elf => @as(*Elf, @constCast(@fieldParentPtr("base", base))).getDebugInfoData(),
+        .macho => @as(*MachO, @constCast(@fieldParentPtr("base", base))).getDebugInfoData(),
+        .wasm => @as(*Wasm, @constCast(@fieldParentPtr("base", base))).getDebugInfoData(),
     };
 }
 
 pub fn getDebugStringData(base: *const Context) ?[]const u8 {
     return switch (base.tag) {
-        .elf => @fieldParentPtr(Elf, "base", base).getDebugStringData(),
-        .macho => @fieldParentPtr(MachO, "base", base).getDebugStringData(),
-        .wasm => @fieldParentPtr(Wasm, "base", base).getDebugStringData(),
+        .elf => @as(*Elf, @constCast(@fieldParentPtr("base", base))).getDebugStringData(),
+        .macho => @as(*MachO, @constCast(@fieldParentPtr("base", base))).getDebugStringData(),
+        .wasm => @as(*Wasm, @constCast(@fieldParentPtr("base", base))).getDebugStringData(),
     };
 }
 
 pub fn getDebugAbbrevData(base: *const Context) ?[]const u8 {
     return switch (base.tag) {
-        .elf => @fieldParentPtr(Elf, "base", base).getDebugAbbrevData(),
-        .macho => @fieldParentPtr(MachO, "base", base).getDebugAbbrevData(),
-        .wasm => @fieldParentPtr(Wasm, "base", base).getDebugAbbrevData(),
+        .elf => @as(*Elf, @constCast(@fieldParentPtr("base", base))).getDebugAbbrevData(),
+        .macho => @as(*MachO, @constCast(@fieldParentPtr("base", base))).getDebugAbbrevData(),
+        .wasm => @as(*Wasm, @constCast(@fieldParentPtr("base", base))).getDebugAbbrevData(),
     };
 }
 
 pub fn getArch(base: *const Context) ?std.Target.Cpu.Arch {
     return switch (base.tag) {
-        .elf => @fieldParentPtr(Elf, "base", base).getArch(),
-        .macho => @fieldParentPtr(MachO, "base", base).getArch(),
+        .elf => @as(*Elf, @constCast(@fieldParentPtr("base", base))).getArch(),
+        .macho => @as(*MachO, @constCast(@fieldParentPtr("base", base))).getArch(),
         .wasm => .wasm32,
     };
 }

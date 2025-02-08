@@ -163,25 +163,25 @@ fn parseDebugInfoEntry(
 fn advanceByFormSize(cu: *CompileUnit, form: u64, creader: anytype) !void {
     const reader = creader.reader();
     switch (form) {
-        dwarf.FORM.strp,
-        dwarf.FORM.sec_offset,
-        dwarf.FORM.ref_addr,
+        dw.FORM.strp,
+        dw.FORM.sec_offset,
+        dw.FORM.ref_addr,
         => {
             _ = try readOffset(cu.header.dw_format, reader);
         },
 
-        dwarf.FORM.addr => try reader.skipBytes(cu.header.address_size, .{}),
+        dw.FORM.addr => try reader.skipBytes(cu.header.address_size, .{}),
 
-        dwarf.FORM.block1,
-        dwarf.FORM.block2,
-        dwarf.FORM.block4,
-        dwarf.FORM.block,
+        dw.FORM.block1,
+        dw.FORM.block2,
+        dw.FORM.block4,
+        dw.FORM.block,
         => {
             const len: u64 = switch (form) {
-                dwarf.FORM.block1 => try reader.readInt(u8, .little),
-                dwarf.FORM.block2 => try reader.readInt(u16, .little),
-                dwarf.FORM.block4 => try reader.readInt(u32, .little),
-                dwarf.FORM.block => try leb.readULEB128(u64, reader),
+                dw.FORM.block1 => try reader.readInt(u8, .little),
+                dw.FORM.block2 => try reader.readInt(u16, .little),
+                dw.FORM.block4 => try reader.readInt(u32, .little),
+                dw.FORM.block => try leb.readULEB128(u64, reader),
                 else => unreachable,
             };
             for (0..len) |_| {
@@ -189,43 +189,43 @@ fn advanceByFormSize(cu: *CompileUnit, form: u64, creader: anytype) !void {
             }
         },
 
-        dwarf.FORM.exprloc => {
+        dw.FORM.exprloc => {
             const len = try leb.readULEB128(u64, reader);
             for (0..len) |_| {
                 _ = try reader.readByte();
             }
         },
-        dwarf.FORM.flag_present => {},
+        dw.FORM.flag_present => {},
 
-        dwarf.FORM.data1,
-        dwarf.FORM.ref1,
-        dwarf.FORM.flag,
+        dw.FORM.data1,
+        dw.FORM.ref1,
+        dw.FORM.flag,
         => try reader.skipBytes(1, .{}),
 
-        dwarf.FORM.data2,
-        dwarf.FORM.ref2,
+        dw.FORM.data2,
+        dw.FORM.ref2,
         => try reader.skipBytes(2, .{}),
 
-        dwarf.FORM.data4,
-        dwarf.FORM.ref4,
+        dw.FORM.data4,
+        dw.FORM.ref4,
         => try reader.skipBytes(4, .{}),
 
-        dwarf.FORM.data8,
-        dwarf.FORM.ref8,
-        dwarf.FORM.ref_sig8,
+        dw.FORM.data8,
+        dw.FORM.ref8,
+        dw.FORM.ref_sig8,
         => try reader.skipBytes(8, .{}),
 
-        dwarf.FORM.udata,
-        dwarf.FORM.ref_udata,
+        dw.FORM.udata,
+        dw.FORM.ref_udata,
         => {
             _ = try leb.readULEB128(u64, reader);
         },
 
-        dwarf.FORM.sdata => {
+        dw.FORM.sdata => {
             _ = try leb.readILEB128(i64, reader);
         },
 
-        dwarf.FORM.string => {
+        dw.FORM.string => {
             while (true) {
                 const byte = try reader.readByte();
                 if (byte == 0x0) break;
@@ -286,7 +286,7 @@ const CieWithHeader = struct {
 
 const WriteOptions = struct {
     llvm_compatibility: bool,
-    frame_type: dwarf.DwarfSection,
+    frame_type: dwarf.Section.Id,
     reg_ctx: abi.RegisterContext,
     addr_size: u8,
     endian: std.builtin.Endian,
@@ -295,7 +295,7 @@ const WriteOptions = struct {
 const Section = struct {
     data: []const u8,
     offset: u64,
-    frame_type: dwarf.DwarfSection,
+    frame_type: dwarf.Section.Id,
 };
 
 pub fn printEhFrames(self: DwarfDump, writer: anytype, llvm_compatibility: bool) !void {
@@ -306,7 +306,7 @@ pub fn printEhFrames(self: DwarfDump, writer: anytype, llvm_compatibility: bool)
                 name: []const u8,
                 section: ?std.elf.Elf64_Shdr,
                 data: ?[]const u8,
-                frame_type: dwarf.DwarfSection,
+                frame_type: dwarf.Section.Id,
             }{
                 .{
                     .name = ".debug_frame",
@@ -345,7 +345,7 @@ pub fn printEhFrames(self: DwarfDump, writer: anytype, llvm_compatibility: bool)
             const macho = self.ctx.cast(Context.MachO).?;
             const sections = [_]struct {
                 name: []const u8,
-                frame_type: dwarf.DwarfSection,
+                frame_type: dwarf.Section.Id,
             }{
                 .{
                     .name = "__debug_frame",
@@ -398,9 +398,9 @@ pub fn printEhFrame(self: DwarfDump, writer: anytype, llvm_compatibility: bool, 
         cies.deinit();
     }
 
-    var stream: std.dwarf.FixedBufferReader = .{ .buf = section.data, .endian = write_options.endian };
+    var stream: std.debug.FixedBufferReader = .{ .buf = section.data, .endian = write_options.endian };
     while (stream.pos < stream.buf.len) {
-        const entry_header = try dwarf.EntryHeader.read(&stream, section.frame_type);
+        const entry_header = try dwarf.EntryHeader.read(&stream, null, section.frame_type); // TODO: null should not be null
         switch (entry_header.type) {
             .cie => {
                 const cie = try dwarf.CommonInformationEntry.parse(
@@ -451,7 +451,7 @@ fn writeCie(
     options: WriteOptions,
     cie_with_header: *CieWithHeader,
 ) !void {
-    const expression_context = dwarf.expressions.ExpressionContext{
+    const expression_context = dwarf.expression.Context{
         .format = cie_with_header.header.format,
     };
 
@@ -549,7 +549,7 @@ fn writeFde(
     fde: dwarf.FrameDescriptionEntry,
 ) !void {
     const cie = &cie_with_header.cie;
-    const expression_context = dwarf.expressions.ExpressionContext{
+    const expression_context = dwarf.expression.Context{
         .format = cie.format,
     };
 
@@ -644,7 +644,7 @@ fn writeRow(
     writer: anytype,
     vm: VirtualMachine,
     row: VirtualMachine.Row,
-    expression_context: dwarf.expressions.ExpressionContext,
+    expression_context: dwarf.expression.Context,
     reg_ctx: abi.RegisterContext,
     addr_size: u8,
     endian: std.builtin.Endian,
@@ -707,7 +707,7 @@ pub fn writeColumnRule(
     writer: anytype,
     is_cfa: bool,
     arch: ?std.Target.Cpu.Arch,
-    expression_context: dwarf.expressions.ExpressionContext,
+    expression_context: dwarf.expression.Context,
     reg_ctx: abi.RegisterContext,
     addr_size_bytes: u8,
     endian: std.builtin.Endian,
@@ -765,7 +765,7 @@ fn writeExpression(
     writer: anytype,
     block: []const u8,
     arch: ?std.Target.Cpu.Arch,
-    expression_context: dwarf.expressions.ExpressionContext,
+    expression_context: dwarf.expression.Context,
     reg_ctx: abi.RegisterContext,
     addr_size_bytes: u8,
     endian: std.builtin.Endian,
@@ -776,8 +776,8 @@ fn writeExpression(
     const opcode_lut_len = 256;
     const opcode_lut: [opcode_lut_len]?[]const u8 = comptime blk: {
         var lut: [opcode_lut_len]?[]const u8 = [_]?[]const u8{null} ** opcode_lut_len;
-        for (@typeInfo(dwarf.OP).Struct.decls) |decl| {
-            lut[@as(u8, @field(dwarf.OP, decl.name))] = decl.name;
+        for (@typeInfo(dw.OP).@"struct".decls) |decl| {
+            lut[@as(u8, @field(dw.OP, decl.name))] = decl.name;
         }
 
         break :blk lut;
@@ -787,7 +787,7 @@ fn writeExpression(
         inline .little, .big => |e| {
             switch (addr_size_bytes) {
                 inline 2, 4, 8 => |size| {
-                    const StackMachine = dwarf.expressions.StackMachine(.{
+                    const StackMachine = dwarf.expression.StackMachine(.{
                         .addr_size = size,
                         .endian = e,
                         .call_frame_context = true,
@@ -802,7 +802,7 @@ fn writeExpression(
                             try writer.print("DW_OP_{s}", .{opcode_name});
                         } else {
                             // TODO: See how llvm-dwarfdump prints these?
-                            if (opcode >= dwarf.OP.lo_user and opcode <= dwarf.OP.hi_user) {
+                            if (opcode >= dw.OP.lo_user and opcode <= dw.OP.hi_user) {
                                 try writer.print("<unknown vendor opcode: 0x{x}>", .{opcode});
                             } else {
                                 try writer.print("<invalid opcode: 0x{x}>", .{opcode});
@@ -830,7 +830,7 @@ fn writeOperands(
     writer: anytype,
     cie: dwarf.CommonInformationEntry,
     arch: ?std.Target.Cpu.Arch,
-    expression_context: dwarf.expressions.ExpressionContext,
+    expression_context: dwarf.expression.Context,
     reg_ctx: abi.RegisterContext,
     addr_size_bytes: u8,
     endian: std.builtin.Endian,
@@ -1071,7 +1071,8 @@ const DwarfDump = @This();
 
 const std = @import("std");
 const assert = std.debug.assert;
-const dwarf = std.dwarf;
+const dwarf = std.debug.Dwarf;
+const dw = std.dwarf;
 const abi = dwarf.abi;
 const leb = std.leb;
 const log = std.log;
@@ -1083,4 +1084,4 @@ const AbbrevLookupTable = std.AutoHashMap(u64, struct { pos: usize, len: usize }
 const AbbrevTable = @import("AbbrevTable.zig");
 const CompileUnit = @import("CompileUnit.zig");
 const Context = @import("Context.zig");
-const VirtualMachine = dwarf.call_frame.VirtualMachine;
+const VirtualMachine = std.debug.SelfInfo.VirtualMachine;

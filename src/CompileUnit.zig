@@ -218,22 +218,22 @@ pub const DebugInfoEntry = struct {
         writer: anytype,
     ) !void {
         switch (attr.at) {
-            dwarf.AT.stmt_list,
-            dwarf.AT.ranges,
+            dw.AT.stmt_list,
+            dw.AT.ranges,
             => {
                 const sec_offset = attr.getSecOffset(value, cu.header.dw_format) orelse
                     return error.MalformedDwarf;
                 try writer.print("{x:0>16}", .{sec_offset});
             },
 
-            dwarf.AT.low_pc => {
+            dw.AT.low_pc => {
                 const addr = attr.getAddr(value, cu.header) orelse
                     return error.MalformedDwarf;
                 low_pc.* = addr;
                 try writer.print("{x:0>16}", .{addr});
             },
 
-            dwarf.AT.high_pc => {
+            dw.AT.high_pc => {
                 if (try attr.getConstant(value)) |offset| {
                     try writer.print("{x:0>16}", .{offset + low_pc.*.?});
                 } else if (attr.getAddr(value, cu.header)) |addr| {
@@ -241,43 +241,43 @@ pub const DebugInfoEntry = struct {
                 } else return error.MalformedDwarf;
             },
 
-            dwarf.AT.type,
-            dwarf.AT.abstract_origin,
+            dw.AT.type,
+            dw.AT.abstract_origin,
             => {
                 const off = (try attr.getReference(value, cu.header.dw_format)) orelse
                     return error.MalformedDwarf;
                 try writer.print("{x}", .{off});
             },
 
-            dwarf.AT.comp_dir,
-            dwarf.AT.producer,
-            dwarf.AT.name,
-            dwarf.AT.linkage_name,
+            dw.AT.comp_dir,
+            dw.AT.producer,
+            dw.AT.name,
+            dw.AT.linkage_name,
             => {
                 const str = attr.getString(value, cu.header.dw_format, ctx) orelse
                     return error.MalformedDwarf;
                 try writer.print("\"{s}\"", .{str});
             },
 
-            dwarf.AT.language,
-            dwarf.AT.calling_convention,
-            dwarf.AT.encoding,
-            dwarf.AT.decl_column,
-            dwarf.AT.decl_file,
-            dwarf.AT.decl_line,
-            dwarf.AT.alignment,
-            dwarf.AT.data_bit_offset,
-            dwarf.AT.call_file,
-            dwarf.AT.call_line,
-            dwarf.AT.call_column,
-            dwarf.AT.@"inline",
+            dw.AT.language,
+            dw.AT.calling_convention,
+            dw.AT.encoding,
+            dw.AT.decl_column,
+            dw.AT.decl_file,
+            dw.AT.decl_line,
+            dw.AT.alignment,
+            dw.AT.data_bit_offset,
+            dw.AT.call_file,
+            dw.AT.call_line,
+            dw.AT.call_column,
+            dw.AT.@"inline",
             => {
                 const x = (try attr.getConstant(value)) orelse return error.MalformedDwarf;
                 try writer.print("{x:0>16}", .{x});
             },
 
-            dwarf.AT.location,
-            dwarf.AT.frame_base,
+            dw.AT.location,
+            dw.AT.frame_base,
             => {
                 if (try attr.getExprloc(value)) |list| {
                     try writer.print("<0x{x}> {x}", .{ list.len, std.fmt.fmtSliceHexLower(list) });
@@ -286,7 +286,7 @@ pub const DebugInfoEntry = struct {
                 }
             },
 
-            dwarf.AT.data_member_location => {
+            dw.AT.data_member_location => {
                 if (try attr.getConstant(value)) |x| {
                     try writer.print("{x:0>16}", .{x});
                 } else if (try attr.getExprloc(value)) |list| {
@@ -296,7 +296,7 @@ pub const DebugInfoEntry = struct {
                 }
             },
 
-            dwarf.AT.const_value => {
+            dw.AT.const_value => {
                 if (try attr.getConstant(value)) |x| {
                     try writer.print("{x:0>16}", .{x});
                 } else if (attr.getString(value, cu.header.dw_format, ctx)) |str| {
@@ -306,7 +306,7 @@ pub const DebugInfoEntry = struct {
                 }
             },
 
-            dwarf.AT.count => {
+            dw.AT.count => {
                 if (try attr.getConstant(value)) |x| {
                     try writer.print("{x:0>16}", .{x});
                 } else if (try attr.getExprloc(value)) |list| {
@@ -316,8 +316,8 @@ pub const DebugInfoEntry = struct {
                 } else return error.MalformedDwarf;
             },
 
-            dwarf.AT.byte_size,
-            dwarf.AT.bit_size,
+            dw.AT.byte_size,
+            dw.AT.bit_size,
             => {
                 if (try attr.getConstant(value)) |x| {
                     try writer.print("{x}", .{x});
@@ -328,17 +328,17 @@ pub const DebugInfoEntry = struct {
                 } else return error.MalformedDwarf;
             },
 
-            dwarf.AT.noreturn,
-            dwarf.AT.external,
-            dwarf.AT.variable_parameter,
-            dwarf.AT.trampoline,
+            dw.AT.noreturn,
+            dw.AT.external,
+            dw.AT.variable_parameter,
+            dw.AT.trampoline,
             => {
                 const flag = attr.getFlag(value) orelse return error.MalformedDwarf;
                 try writer.print("{}", .{flag});
             },
 
             else => {
-                if (dwarf.AT.lo_user <= attr.at and attr.at <= dwarf.AT.hi_user) {
+                if (dw.AT.lo_user <= attr.at and attr.at <= dw.AT.hi_user) {
                     if (try attr.getConstant(value)) |x| {
                         try writer.print("{x}", .{x});
                     } else if (attr.getString(value, cu.header.dw_format, ctx)) |string| {
@@ -354,7 +354,8 @@ fn fmtIndent(indent: usize, writer: anytype) !void {
     for (0..indent) |_| try writer.writeByte(' ');
 }
 
-const dwarf = std.dwarf;
+const dwarf = std.debug.Dwarf;
+const dw = std.dwarf;
 const std = @import("std");
 const AbbrevTable = @import("AbbrevTable.zig");
 const Attr = AbbrevTable.Attr;

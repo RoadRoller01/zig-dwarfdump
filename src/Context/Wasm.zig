@@ -97,7 +97,7 @@ pub fn getDebugInfoData(wasm_file: *const Wasm) ?[]const u8 {
 /// in bytes to store the integer using leb128-encoding.
 fn getULEB128Size(uint_value: anytype) u32 {
     const T = @TypeOf(uint_value);
-    const U = if (@typeInfo(T).Int.bits < 8) u8 else T;
+    const U = if (@typeInfo(T).int.bits < 8) u8 else T;
     var value = @as(U, @intCast(uint_value));
 
     var size: u32 = 0;

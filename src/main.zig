@@ -63,9 +63,9 @@ pub fn main() !void {
         eh_frame: bool = false,
 
         const Int = blk: {
-            const bits = @typeInfo(@This()).Struct.fields.len;
+            const bits = @typeInfo(@This()).@"struct".fields.len;
             break :blk @Type(.{
-                .Int = .{
+                .int = .{
                     .signedness = .unsigned,
                     .bits = bits,
                 },

@@ -120,5 +120,38 @@ fn getShString(elf: *const Elf, off: u32) []const u8 {
 }
 
 pub fn getArch(elf: *const Elf) ?std.Target.Cpu.Arch {
-    return elf.header.e_machine.toTargetCpuArch();
+    return switch (elf.header.e_machine) {
+        .AVR => .avr,
+        .MSP430 => .msp430,
+        .ARC => .arc,
+        .ARM => .arm,
+        .@"68K" => .m68k,
+        .MIPS => .mips,
+        .MIPS_RS3_LE => .mipsel,
+        .PPC => .powerpc,
+        .SPARC => .sparc,
+        .@"386" => .x86,
+        .XCORE => .xcore,
+        .CSR_KALIMBA => .kalimba,
+        .LANAI => .lanai,
+        .AARCH64 => .aarch64,
+        .PPC64 => .powerpc64,
+        .RISCV => .riscv64,
+        .X86_64 => .x86_64,
+        .BPF => .bpfel,
+        .SPARCV9 => .sparc64,
+        .S390 => .s390x,
+        .SPU_2 => .spu_2,
+        // FIXME:
+        // No support for .loongarch32 yet so it is safe to assume we are on .loongarch64.
+        //
+        // However, when e_machine is .LOONGARCH, we should check
+        // ei_class's value to decide the CPU architecture.
+        // - ELFCLASS32 => .loongarch32
+        // - ELFCLASS64 => .loongarch64
+        .LOONGARCH => .loongarch64,
+        // there's many cases we don't (yet) handle, or will never have a
+        // zig target cpu arch equivalent (such as null).
+        else => null,
+    };
 }
